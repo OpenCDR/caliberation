@@ -207,6 +207,7 @@ int main() {
 		strStm >> imageFileName;
 		imageFileName += "_d.jpg";
 		imwrite(imageFileName, newImage);
+
 		waitKey(200);
 	}
 	destroyAllWindows();
