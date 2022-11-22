@@ -369,3 +369,4 @@ calibimages/
 *.props
 calibdata.txt
 caliberation_result.txt
+*.bmp

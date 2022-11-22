@@ -1,23 +1,23 @@
 #include "ImageProcess.h"
 
-
 std::vector<cv::Point2d> ProcessTool::averageLine(cv::Mat img0, const cv::Point2d& leftUp, const cv::Point2f& rightDown) const {
 	const cv::Mat img = img0.clone();
 	medianBlur(img0, img0, 5);
 	cvtColor(img0, img0, cv::COLOR_BGR2GRAY);
 	threshold(img0, img0, 0, 255, cv::THRESH_OTSU);
 	std::vector<cv::Point2d> result;
-	for (int i = leftUp.x; i < rightDown.x; i++) {
-		int sum = 0;
+	for (int i = leftUp.y; i < rightDown.y; i++) {
+		double sum = 0;
 		int num = 0;
-		for (int j = leftUp.y; j < rightDown.y; j++)
-			if (img0.at<uchar>(j, i) == 255) {
+		const uchar* p= img0.ptr<uchar>(i);//获取每行首地址
+		for (int j = leftUp.x; j < rightDown.x; j++)
+			if (static_cast<int>(p[j]) == 255) {
 				sum += j;
 				num++;
 			}
 		if (num == 0)
 			continue;
-		result.emplace_back(i, 1.0 * sum / num);
+		result.emplace_back(sum / num, i);
 	}
 	showLine(result, img);
 	return result;
@@ -29,6 +29,12 @@ std::vector<cv::Point2d> ProcessTool::stegerLine(cv::Mat img0, int col, int row,
 		cvtColor(img0, img0, cv::COLOR_BGR2GRAY);
 	cv::Mat img;
 	img = img0.clone();
+	for (int i = 1; i < img.rows-1; i++) {
+		for (int j = 1; j < img.cols-1; j++)
+			if (!neighborAnalysis(cv::Point2i(i,j),img,50)) {
+				img.at<uchar>(i, j) = 0;
+			}
+	}
 	//高斯滤波
 	img.convertTo(img, CV_32FC1);
 	//奇数,选择线宽
@@ -62,6 +68,7 @@ std::vector<cv::Point2d> ProcessTool::stegerLine(cv::Mat img0, int col, int row,
 	filter2D(img, dxy, CV_32FC1, m5);
 
 	//hessian矩阵
+	double maxD = -1;
 	int imgCol = img.cols;
 	int imgRow = img.rows;
 
@@ -94,18 +101,17 @@ std::vector<cv::Point2d> ProcessTool::stegerLine(cv::Mat img0, int col, int row,
 				//std::cout << "eValue:" << eValue << std::endl << "eVectors:" << eVectors << std::endl;
 				//nx为特征值最大对应的x，ny为特征值最大对应的y
 				double nx, ny;
-				double maxD = 0;
+				double fmaxD = 0;
 				//求特征值绝对值最大时对应的特征向量
 				//Hessian矩阵的特征值就是形容其在该点附近特征向量方向的凹凸性，特征值越大，凸性越强。
 				if (fabs(eValue.at<float>(0, 0)) >= fabs(eValue.at<float>(1, 0))) {
 					nx = eVectors.at<float>(0, 0);
 					ny = eVectors.at<float>(0, 1);
-					maxD = eValue.at<float>(0, 0);
-				}
-				else {
+					fmaxD = eValue.at<float>(0, 0);
+				} else {
 					nx = eVectors.at<float>(1, 0);
 					ny = eVectors.at<float>(1, 1);
-					maxD = eValue.at<float>(1, 0);
+					fmaxD = eValue.at<float>(1, 0);
 				}
 				// 使用泰勒展开表示光强的分布函数f(x+t*nx,y+t*ny)可以表示当前坐标附近的光强分布
 				// f(x+t*nx,y+t*ny) hessian矩阵特征值最大的对应的特征向量(nx，ny)表示梯度上升最快的方向（光强改变最快），要往这个方向改变  
@@ -126,13 +132,52 @@ std::vector<cv::Point2d> ProcessTool::stegerLine(cv::Mat img0, int col, int row,
 				}
 			}
 	cvtColor(img0, img0, cv::COLOR_GRAY2BGR);
+	std::sort(pt.begin(), pt.end(), comp);
+	std::vector<cv::Point2d> pt1;
+	//std::cout << pt << std::endl;
+	int tempY = static_cast<int>(pt.front().y);
+	for (size_t i = 1; i < pt.size(); ++i) {
+		if (static_cast<int>(pt.at(i).y) == tempY && static_cast<int>(pt.at(i + 1).y) != tempY) {
+			size_t k = i;
+			while (static_cast<int>(pt.at(k).y) == tempY) {
+				k--;
+			}
+			if (pt.at(k).x - pt.at(i).x < 3)
+				pt.at(i).x = (pt.at(i + 1).x + pt.at(k).x) / 2;
+			else
+				pt.at(i).x = pt.at(i + 1).x;
+			k = i - 1;
+			while (static_cast<int>(pt.at(k).y) == tempY) {
+				pt.at(k).x = pt.at(i).x;
+				k--;
+			}
+		}
+		tempY = static_cast<int>(pt.at(i).y);
+	}
+	//std::cout << pt << std::endl;
 	showLine(pt, img0);
 	return pt;
+}
+
+bool ProcessTool::comp(const cv::Point& a, const cv::Point& b) {
+	return a.y > b.y;
+}
+
+bool ProcessTool::neighborAnalysis(const cv::Point2i& point, cv::Mat img, const int threshold) {
+	const int sum =
+		static_cast<int>(img.at<uchar>(point.x - 1, point.y)) + static_cast<int>(img.at<uchar>(point.x + 1, point.y)) +
+		static_cast<int>(img.at<uchar>(point.x - 1, point.y - 1)) + static_cast<int>(img.at<uchar>(point.x + 1, point.y + 1)) +
+		static_cast<int>(img.at<uchar>(point.x, point.y - 1)) + static_cast<int>(img.at<uchar>(point.x, point.y + 1)) +
+		static_cast<int>(img.at<uchar>(point.x - 1, point.y - 1)) + static_cast<int>(img.at<uchar>(point.x + 1, point.y + 1)) +
+		static_cast<int>(img.at<uchar>(point.x - 1, point.y + 1)) + static_cast<int>(img.at<uchar>(point.x + 1, point.y - 1));
+	if (sum < 8 * threshold && static_cast<int>(img.at<uchar>(point.x, point.y)) !=0)
+		return false;
+	return true;
 }
 
 void ProcessTool::showLine(const std::vector<cv::Point2d>& points, cv::Mat image) const {
 	for (const auto& point : points)
 		image.at<cv::Vec3b>(point.y, point.x) = cv::Vec3b(0, 0, 255);
 	imshow("GetLine", image);
-	cv::waitKey(1);
+	cv::waitKey();
 }
