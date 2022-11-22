@@ -20,7 +20,7 @@ int main() {
 	//读取文件中保存的图片文件路径，并存放在数组中
 	while (getline(inImgPath, temp))
 		imgPathList.push_back(temp);
-	auto image = cv::imread("LaserImages2/base.bmp");
+	auto image = cv::imread("calibimages/12.bmp");
 	CalibrateCamera camera;
 	LaserPlane laserPlane;
 	camera.loadCalibImage(imgPathList);
@@ -39,7 +39,7 @@ int main() {
 	laserPlane.loadBoard(noLaserImageList, camera);
 	laserPlane.loadLaser(laserImageList, camera);
 	laserPlane.calculateLaserPlane();
-	image = cv::imread("LaserImages2/Image_20221121194108563.bmp");
+	image = cv::imread("LaserImages2/Image_20221122150451310.bmp");
 	cv::Mat r = camera.getBaseRvecsMat();
 	cv::Mat t = camera.getBaseTvecsMat();
 
@@ -47,7 +47,7 @@ int main() {
 	std::vector<std::vector<float>> pointss;
 	auto points = tool.averageLine(image, cv::Point2d(0, 0), cv::Point2d(image.cols, image.rows));
 	for (auto& point : points) {
-		cv::Point3f points3d = camera.getWorldPoints(cv::Point2f(point.x, point.y), r, t);
+		cv::Point3f points3d = camera.getWorldPoints(cv::Point2f(point.x, point.y),r,t);
 		points3d.z = (laserPlane.getD() - laserPlane.getA() * points3d.x - laserPlane.getB() * points3d
 			.y) / laserPlane.getC();
 		std::vector<float> kk = { points3d.x, points3d.y, points3d.z };

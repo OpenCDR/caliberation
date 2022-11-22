@@ -17,9 +17,12 @@ void CalibrateCamera::calRealPoint(std::vector<std::vector<cv::Point3f>>& obj, c
 		for (int i = 0; i < patternSize_.height; i++)
 			for (int j = 0; j < patternSize_.width; j++) {
 				cv::Point3f singleRealPoint; //一个角点的坐标，初始化三维坐标
-				singleRealPoint.x = static_cast<float>(j) * squareSize - (patternSize_.width / 2 * squareSize);
-				singleRealPoint.y = static_cast<float>(i) * squareSize - (patternSize_.height / 2 * squareSize);
-				singleRealPoint.z = z; //假设z=0
+				singleRealPoint.x = i * squareSize;
+				singleRealPoint.y = j * squareSize;
+				singleRealPoint.z = 0;
+				//singleRealPoint.x = static_cast<float>(j) * squareSize - (static_cast<float>(patternSize_.width-1) / 2 * squareSize);
+				//singleRealPoint.y = static_cast<float>(i) * squareSize - (static_cast<float>(patternSize_.height-1) / 2 * squareSize);
+				//singleRealPoint.z = z; //假设z=0
 				tempCornerPoints.push_back(singleRealPoint);
 			}
 		obj.push_back(tempCornerPoints);
@@ -62,13 +65,14 @@ void CalibrateCamera::cornerPointExtraction() {
 		cv::Mat gray=i.clone();
 		if (i.channels() == 3)
 			cvtColor(i, gray, cv::COLOR_RGB2GRAY); //将原来的图片转换为灰度图片
-		find4QuadCornerSubpix(gray, cornerPointsBuf, cv::Size(5, 5)); //提取亚像素角点,Size(5, 5),角点搜索窗口的大小。
+		//find4QuadCornerSubpix(gray, cornerPointsBuf, cv::Size(5, 5)); //提取亚像素角点,Size(5, 5),角点搜索窗口的大小。
 		cornerPointsOfAllImages_.push_back(cornerPointsBuf);
-		drawChessboardCorners(gray, patternSize_, cornerPointsBuf, true);
+		drawChessboardCorners(i, patternSize_, cornerPointsBuf, true);
 		//cv::namedWindow("camera calibration", 0);
 		//cv::resizeWindow("camera calibration", 960, 640);
-		//imshow("camera calibration", gray);
-		//cv::waitKey(50);
+		//imshow("camera calibration", i);
+		//cv::imwrite(std::to_string(cornerPointsBuf[0].x) + ".jpg", i);
+		//cv::waitKey();
 	}
 
 	const auto total = cornerPointsOfAllImages_.size();
@@ -101,8 +105,8 @@ void CalibrateCamera::cameraCalibration() {
 
 	cout << endl << "相机相关参数：" << endl;
 	file << "相机相关参数：" << endl;
-	cout << "1.内外参数矩阵:" << endl;
-	file << "1.内外参数矩阵:" << endl;
+	cout << "1.内参数矩阵:" << endl;
+	file << "1.内参数矩阵:" << endl;
 	cout << "大小：" << cameraMatrix_.size() << endl;
 	file << "大小：" << cameraMatrix_.size() << endl;
 	cout << cameraMatrix_ << endl;
@@ -120,7 +124,7 @@ void CalibrateCamera::baseCalculate(cv::Mat rgbImage) {
 	if (isFind) {
 		cv::Mat grayImage;
 		cvtColor(rgbImage, grayImage, cv::COLOR_BGR2GRAY);
-		find4QuadCornerSubpix(grayImage, corner, cv::Size(5, 5));
+		//find4QuadCornerSubpix(grayImage, corner, cv::Size(5, 5));
 		//画出找到的交点
 		drawChessboardCorners(rgbImage, patternSize_, corner, isFind);
 		std::vector<std::vector<cv::Point3f>> objRealPoint;
@@ -309,7 +313,7 @@ void LaserPlane::loadBoard(const vector<cv::Mat>& boardNoLaser, CalibrateCamera&
 		cv::Mat gray = image.clone();
 		if (image.channels() == 3)
 			cvtColor(image, gray, cv::COLOR_BGR2GRAY);
-		find4QuadCornerSubpix(gray, corner, cv::Size(5, 5));
+		//find4QuadCornerSubpix(gray, corner, cv::Size(5, 5));
 		//drawChessboardCorners(image, patternSize_, corner, true);
 		//imshow("BaseCalculate", image);
 		//cv::waitKey();

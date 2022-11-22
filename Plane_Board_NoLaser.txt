@@ -1,3 +1,4 @@
-LaserImages2/base.bmp
-LaserImages2/00.bmp
-LaserImages2/01.bmp
+LaserImages/1.bmp
+LaserImages/2.bmp
+LaserImages/3.bmp
+LaserImages/4.bmp

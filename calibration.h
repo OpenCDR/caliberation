@@ -41,7 +41,7 @@ private:
 	// 图像大小
 	cv::Size imageSize_;
 	//标定板上每行、每列的角点数；测试图片中的标定板上内角点数为8*6
-	cv::Size patternSize_ = cv::Size(11, 8);
+	cv::Size patternSize_ = cv::Size(10, 8);
 	//所有图片的角点信息
 	vector<vector<cv::Point2f>> cornerPointsOfAllImages_;
 	//保存标定时用的像素坐标
@@ -82,7 +82,7 @@ public:
 	double getD() const;
 private:
 	//标定板上每行、每列的角点数；测试图片中的标定板上内角点数为8*6
-	cv::Size patternSize_ = cv::Size(11, 8);
+	cv::Size patternSize_ = cv::Size(10, 8);
 	//保存读取的标定像素点
 	std::vector<std::vector<cv::Point2f>> imagePoint_;
 	//保存计算的旋转向量和位移向量，用于之后的向基准坐标系转换
