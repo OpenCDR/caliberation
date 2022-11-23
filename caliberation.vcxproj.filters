@@ -24,12 +24,33 @@
     <ClCompile Include="main.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="struct_light_calib.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="structlight.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="structure_light.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ImageProcess.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="calibration.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="main.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="struct_light_calib.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="structlight.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="structure_light.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

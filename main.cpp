@@ -1,58 +1,68 @@
-#include <iostream>
-#include <vector>
+#include "structure_light.h"
+#include "struct_light_calib.h"
+#include "structlight.h"
 #include <fstream>
-#include <string>
-#include <opencv2/opencv.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/calib3d/calib3d.hpp>
-#include "calibration.h"
-#include "ImageProcess.h"
+#include <iostream>
+#include <iomanip>
+#include <fstream>
+#include <vector>
+#include <opencv2/core/types.hpp>
 
 using namespace std;
 
-int main() {
-	ifstream inImgPath("calibdata.txt"); //标定所用图像文件的路径
-	vector<string> imgPathList;
-	string temp;
-	if (!inImgPath.is_open())
-		cout << "没有找到文件" << endl;
-	//读取文件中保存的图片文件路径，并存放在数组中
-	while (getline(inImgPath, temp))
-		imgPathList.push_back(temp);
-	auto image = cv::imread("calibimages/12.bmp");
-	CalibrateCamera camera;
-	LaserPlane laserPlane;
-	camera.loadCalibImage(imgPathList);
-	camera.run();
-	camera.baseCalculate(image);
-	ifstream noLaserImgPath("Plane_Board_NoLaser.txt"); //标定所用图像文件的路径
-	vector<cv::Mat> noLaserImageList;
-	while (getline(noLaserImgPath, temp)) {
-		noLaserImageList.push_back(cv::imread(temp));
-	}
-	ifstream laserImgPath("Plane_Board_Laser.txt"); //标定所用图像文件的路径
-	vector<cv::Mat> laserImageList;
-	while (getline(laserImgPath, temp)) {
-		laserImageList.push_back(cv::imread(temp));
-	}
-	laserPlane.loadBoard(noLaserImageList, camera);
-	laserPlane.loadLaser(laserImageList, camera);
-	laserPlane.calculateLaserPlane();
-	image = cv::imread("LaserImages2/Image_20221122150451310.bmp");
-	cv::Mat r = camera.getBaseRvecsMat();
-	cv::Mat t = camera.getBaseTvecsMat();
+int MAX_ITER = 100000;
+double eps = 0.0000001;
 
-	ProcessTool tool;
-	std::vector<std::vector<float>> pointss;
-	auto points = tool.averageLine(image, cv::Point2d(0, 0), cv::Point2d(image.cols, image.rows));
-	for (auto& point : points) {
-		cv::Point3f points3d = camera.getWorldPoints(cv::Point2f(point.x, point.y),r,t);
-		points3d.z = (laserPlane.getD() - laserPlane.getA() * points3d.x - laserPlane.getB() * points3d
-			.y) / laserPlane.getC();
-		std::vector<float> kk = { points3d.x, points3d.y, points3d.z };
-		std::cout << points3d.x << " " << points3d.y << " " << points3d.z << endl;
-		pointss.push_back(kk);
+//定义一些全局变量作为标定的靶标参数
+int imageCount = 11; //图像的数量
+cv::Size patternSize(7, 7); //靶标（圆的数量）
+cv::Size2f patternLength(37.5, 37.5); //两个圆形标记之间的距离
+//patternType:
+//0:circle;
+//1:chessboard;
+bool isCircle = true;
+
+int main() {
+	structure_light lineStructureLight(imageCount, patternSize, patternLength);
+
+	double reProjectionError = 0.0;
+	cameraCalib(lineStructureLight, reProjectionError); //摄像机标定
+	cout << "Camera calibration reProjection error: " << reProjectionError << " pixels." << endl;
+
+	//光条中心提取
+	//steger光条中心提取算法
+	stegerLine(lineStructureLight);
+
+	//结构光光条直线拟合与相交点坐标提取
+	vector<vector<cv::Point2f>> intersectPoint; //光平面和靶标平面上的点
+	crossPoint(lineStructureLight, intersectPoint);
+	//交比不变求取光平面三维坐标
+	crossRatio(lineStructureLight, intersectPoint);
+
+	//拟合光平面
+	lightPlainFitting(lineStructureLight);
+
+	// 输出点云的数量
+	cout << lineStructureLight.lightPlanePoint.size() << endl;
+
+	// 将点云存储在一个TXT文件中
+	ofstream outfile;
+	outfile.open("pointCloud.txt", ios::binary | ios::app | ios::in | ios::out);
+	for (auto& k : lineStructureLight.lightPlanePoint) {
+		outfile << k.x << " ";
+		outfile << k.y << " ";
+		outfile << k.z << "\n";
 	}
+	outfile.close(); //关闭文件，保存文件
+	//输出标定结果
+	lineStructureLight.outputResult();
+
+	//对标定结果进行评估（方法：类反投影）
+	Structlight structLightMeasure;
+	structLightMeasure.readParameters();
+	vector<vector<float>> backProjectError;
+	estimateError2(lineStructureLight, structLightMeasure, backProjectError);
+	cout << "finish!" << endl;
 	return 0;
+
 }
